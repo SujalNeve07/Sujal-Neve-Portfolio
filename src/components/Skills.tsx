@@ -45,7 +45,8 @@ import {
 import { FaJava } from 'react-icons/fa6'
 import { VscVscode } from 'react-icons/vsc'
 import { ChatGptIcon, MicrosoftCopilotIcon, AntigravityIcon } from '@/components/brandIcons'
-import { gsap } from '@/lib/gsap'
+import { gsap, ScrollTrigger } from '@/lib/gsap'
+import { getLenis } from '@/lib/lenis'
 
 export interface SkillItem {
   name: string
@@ -341,6 +342,28 @@ export function Skills() {
   }, [])
 
   useEffect(() => {
+    getLenis()?.resize()
+    ScrollTrigger.refresh()
+  }, [selectedCategoryId])
+
+  // Monitor element dimensions to recalculate Lenis bounds and GSAP ScrollTrigger coordinates
+  // whenever the category selection collapses or expands the Skills container.
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const ro = new ResizeObserver(() => {
+      getLenis()?.resize()
+      ScrollTrigger.refresh()
+    })
+
+    ro.observe(containerRef.current)
+
+    return () => {
+      ro.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         headerRef.current,
@@ -371,8 +394,7 @@ export function Skills() {
             scrollTrigger: {
               trigger: tabsRef.current,
               start: 'top 85%',
-              end: 'bottom 15%',
-              toggleActions: 'play reverse play reverse',
+              toggleActions: 'play none none reverse',
             },
           }
         )
@@ -465,62 +487,76 @@ export function Skills() {
           </div>
 
           {/* Skills Grid with Verified Brand / Technology Icons */}
-          <div id="skills-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence mode="popLayout">
-              {filteredSkills.map((skill) => {
-                const SkillIcon = skill.icon
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedCategoryId}
+              id="skills-grid"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              onAnimationComplete={() => {
+                getLenis()?.resize()
+                ScrollTrigger.refresh()
+              }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            >
+              {filteredSkills.length === 0 ? (
+                <div className="col-span-full p-8 text-center rounded-2xl bg-surface-1 border border-dashed border-border-subtle text-text-muted font-mono text-sm">
+                  No technologies currently listed in this category.
+                </div>
+              ) : (
+                filteredSkills.map((skill) => {
+                  const SkillIcon = skill.icon
 
-                return (
-                  <motion.div
-                    layout
-                    key={skill.name}
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="p-5 rounded-2xl bg-surface-1 border border-border-subtle hover:border-accent-green hover:shadow-surface-card transition-all duration-200 flex flex-col justify-between space-y-3.5 group"
-                    tabIndex={0}
-                    role="article"
-                    aria-label={`Skill: ${skill.name}, Category: ${skill.category}`}
-                  >
-                    <div className="space-y-3">
-                      {/* Top Row: Icon + Name + Category Pill */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Distinctive Logo / Icon Container */}
-                          <div
-                            className="w-10 h-10 rounded-xl bg-surface-2 border border-border-subtle flex items-center justify-center text-text-primary group-hover:text-accent-green group-hover:border-accent-green group-hover:bg-surface-1 transition-all duration-200 shrink-0"
-                            aria-hidden="true"
-                          >
-                            <SkillIcon className="w-5 h-5 transition-transform group-hover:scale-110" />
+                  return (
+                    <div
+                      key={skill.name}
+                      className="p-5 rounded-2xl bg-surface-1 border border-border-subtle hover:border-accent-green hover:shadow-surface-card transition-all duration-200 flex flex-col justify-between space-y-3.5 group"
+                      tabIndex={0}
+                      role="article"
+                      aria-label={`Skill: ${skill.name}, Category: ${skill.category}`}
+                    >
+                      <div className="space-y-3">
+                        {/* Top Row: Icon + Name + Category Pill */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Distinctive Logo / Icon Container */}
+                            <div
+                              className="w-10 h-10 rounded-xl bg-surface-2 border border-border-subtle flex items-center justify-center text-text-primary group-hover:text-accent-green group-hover:border-accent-green group-hover:bg-surface-1 transition-all duration-200 shrink-0"
+                              aria-hidden="true"
+                            >
+                              <SkillIcon className="w-5 h-5 transition-transform group-hover:scale-110" />
+                            </div>
+
+                            <h3 className="font-display font-bold text-base text-text-primary group-hover:text-accent-green transition-colors truncate">
+                              {skill.name}
+                            </h3>
                           </div>
 
-                          <h3 className="font-display font-bold text-base text-text-primary group-hover:text-accent-green transition-colors truncate">
-                            {skill.name}
-                          </h3>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-2 text-text-muted border border-border-subtle shrink-0">
+                            {skill.category}
+                          </span>
                         </div>
 
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-2 text-text-muted border border-border-subtle shrink-0">
-                          {skill.category}
-                        </span>
+                        <p className="font-sans text-xs text-text-secondary leading-relaxed pl-0.5">
+                          {skill.detail}
+                        </p>
                       </div>
 
-                      <p className="font-sans text-xs text-text-secondary leading-relaxed pl-0.5">
-                        {skill.detail}
-                      </p>
+                      <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[11px] font-mono text-text-muted">
+                        <span className="text-[10px] uppercase tracking-wider">Verified Skill</span>
+                        <Check className="w-3.5 h-3.5 text-accent-green" aria-hidden="true" />
+                      </div>
                     </div>
-
-                    <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[11px] font-mono text-text-muted">
-                      <span className="text-[10px] uppercase tracking-wider">Verified Skill</span>
-                      <Check className="w-3.5 h-3.5 text-accent-green" aria-hidden="true" />
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
-          </div>
+                  )
+                })
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </section>
   )
 }
+
